@@ -8,8 +8,8 @@ import (
 	"mnishiguchi.com/todo"
 )
 
-// Hardcode the file name for now
-const todoFileName = ".todo.json"
+// Default filename
+var todoFileName = ".todo.json"
 
 /*
 ## Examples
@@ -24,6 +24,10 @@ const todoFileName = ".todo.json"
     go run main.go -task "Go for a walk"
 */
 func main() {
+	if os.Getenv("TODO_FILENAME") != "" {
+		todoFileName = os.Getenv("TODO_FILENAME")
+	}
+
 	// Parse command-line flags. See https://pkg.go.dev/flag
 	argTask := flag.String("task", "", "A task to be included in the todo list")
 	argList := flag.Bool("list", false, "List all tasks")
