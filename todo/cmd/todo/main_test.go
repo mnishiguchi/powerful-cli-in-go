@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestMain(m *testing.M) {
 
 	// Make sure that the executable works.
 	if err := build.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Cannnot build tool %s: %s", binName, err)
+		fmt.Fprintf(os.Stderr, "Cannot build tool %s: %s", binName, err)
 		os.Exit(1)
 	}
 
@@ -51,11 +52,28 @@ func TestTodoCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	taskName := "test task number 1"
+	taskName1 := "test task number 1"
 
-	// Add a new task
-	t.Run("AddNewTask", func(t *testing.T) {
-		cmd := exec.Command(cmdPath, "-task", taskName)
+	// Add a new task from arguments
+	t.Run("AddNewTaskFromArguments", func(t *testing.T) {
+		cmd := exec.Command(cmdPath, "-add", taskName1)
+
+		if err := cmd.Run(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	taskName2 := "test task number 2"
+
+	// Add a new task from STDIN
+	t.Run("AddNewTaskFromSTDIN", func(t *testing.T) {
+		cmd := exec.Command(cmdPath, "-add")
+		cmdStdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(cmdStdin, taskName2)
+		cmdStdin.Close()
 
 		if err := cmd.Run(); err != nil {
 			t.Fatal(err)
@@ -69,7 +87,7 @@ func TestTodoCLI(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := fmt.Sprintf("[ ] 1: %s\n", taskName)
+		expected := fmt.Sprintf("[ ] 1: %s\n[ ] 2: %s\n", taskName1, taskName2)
 
 		if expected != string(cmdOutput) {
 			t.Errorf("Expected %q, got %q instead\n", expected, string(cmdOutput))
