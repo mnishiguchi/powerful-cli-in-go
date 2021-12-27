@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"mnishiguchi.com/todo"
 )
@@ -14,14 +14,22 @@ const todoFileName = ".todo.json"
 /*
 ## Examples
 
+    # Display the usage
+    go run main.go -h
+
     # List all tasks
-    go run main.go
+    go run main.go -list
 
     # Add a new task
-    go run main.go Go for a walk
-
+    go run main.go -task "Go for a walk"
 */
 func main() {
+	// Parse command-line flags. See https://pkg.go.dev/flag
+	argTask := flag.String("task", "", "A task to be included in the todo list")
+	argList := flag.Bool("list", false, "List all tasks")
+	argComplete := flag.Int("complete", 0, "Item to be completed")
+	flag.Parse()
+
 	// A pointer to an emply todo list
 	list := &todo.TodoList{}
 
@@ -33,22 +41,37 @@ func main() {
 
 	// Decide what to do based on the number of arguments provided
 	switch {
-	// For no extra argument other than the program name
-	case len(os.Args) == 1:
-		// Print all the todo items
+	case *argList:
+		// List all todo items that are not completed yet
 		for _, item := range *list {
-			fmt.Println(item.Task)
+			if !item.Done {
+				fmt.Println(item.Task)
+			}
 		}
-	// For extra arguments
-	default:
-		// Concatenate all the extra arguments with a space and add the task
-		task := strings.Join(os.Args[1:], " ")
-		list.Add(task)
+	case *argComplete > 0:
+		// Complete a given task
+		if err := list.Complete(*argComplete); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 
-		// Save the new list
+		// Save the todo list
 		if err := list.Save(todoFileName); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case *argTask != "":
+		// Add a new task
+		list.Add(*argTask)
+
+		// Save the todo list
+		if err := list.Save(todoFileName); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	default:
+		// Invalid flag provided
+		fmt.Fprintln(os.Stderr, "Invalid option")
+		os.Exit(1)
 	}
 }

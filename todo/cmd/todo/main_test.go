@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -56,7 +55,7 @@ func TestTodoCLI(t *testing.T) {
 
 	// Add a new task
 	t.Run("AddNewTask", func(t *testing.T) {
-		cmd := exec.Command(cmdPath, strings.Split(taskName, " ")...)
+		cmd := exec.Command(cmdPath, "-task", taskName)
 
 		if err := cmd.Run(); err != nil {
 			t.Fatal(err)
@@ -65,7 +64,7 @@ func TestTodoCLI(t *testing.T) {
 
 	// List all tasks
 	t.Run("ListTasks", func(t *testing.T) {
-		cmd := exec.Command(cmdPath)
+		cmd := exec.Command(cmdPath, "-list")
 		cmdOutput, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatal(err)
