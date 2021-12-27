@@ -17,17 +17,22 @@ var todoFileName = ".todo.json"
 /*
 ## Examples
 
+    cd path/to/cmd/todo
+
+    # Build the executable
+    go build
+
     # Display the usage
-    go run main.go -h
+    ./todo -h
 
     # List all tasks
-    go run main.go -list
+    ./todo -list
 
     # Add a new task from arguments
-    go run main.go -add "Go for a walk"
+    ./todo -add "Go for a walk"
 
     # Add a new task from STDIN
-    go run main.go -add
+    ./todo -add
     Study Golang
 */
 func main() {
