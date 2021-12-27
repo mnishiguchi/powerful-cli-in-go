@@ -42,12 +42,8 @@ func main() {
 	// Decide what to do based on the number of arguments provided
 	switch {
 	case *argList:
-		// List all todo items that are not completed yet
-		for _, item := range *list {
-			if !item.Done {
-				fmt.Println(item.Task)
-			}
-		}
+		// List all todo items
+		fmt.Print(list)
 	case *argComplete > 0:
 		// Complete a given task
 		if err := list.Complete(*argComplete); err != nil {

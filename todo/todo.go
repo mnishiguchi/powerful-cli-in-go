@@ -81,3 +81,20 @@ func (l *TodoList) Get(filename string) error {
 
 	return json.Unmarshal(file, l)
 }
+
+// Prints a formatted list, implementing the fmt.Stringer interface.
+func (l *TodoList) String() string {
+	formatted := ""
+
+	for index, item := range *l {
+		prefix := "[ ] "
+		if item.Done {
+			prefix = "[X] "
+		}
+
+		// Use one-based indexing for CLI while zero-based internally.
+		formatted += fmt.Sprintf("%s%d: %s\n", prefix, index+1, item.Task)
+	}
+
+	return formatted
+}
