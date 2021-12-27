@@ -10,10 +10,7 @@ import (
 	"testing"
 )
 
-var (
-	binName  = "todo"
-	fileName = ".todo.json"
-)
+var binName = "todo"
 
 // Executes extra setup before our tests
 func TestMain(m *testing.M) {
@@ -24,6 +21,13 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "windows" {
 		binName += ".exe"
 	}
+
+	// Use a temporary data file for testing.
+	if err := os.Setenv("TODO_FILENAME", ".todo-main-test.json"); err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot set TODO_FILENAME env")
+		os.Exit(1)
+	}
+	fileName := os.Getenv("TODO_FILENAME")
 
 	// Build the executable binary for our CLI tool.
 	build := exec.Command("go", "build", "-o", binName)
