@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,25 +17,34 @@ import (
 )
 
 const (
-	header = `<!DOCTYPE html>
+	defaultTemplate = `<!DOCTYPE html>
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <title>Markdown Preview</title>
+    <title>{{ .Title }}</title>
   </head>
   <body>
-`
-	footer = `
+{{ .Body }}
   </body>
 </html>
 `
 )
 
+// Represents the HTML content to add into the template.
+type templateProps struct {
+	Title string
+	// Never use HTML from untrusted sources as it could present a security risk.
+	Body template.HTML
+}
+
 /*
 ## Examples
 
-    # Parse markdown and open a preview
+    # Parse markdown using default HTML template and open a preview
     ./mdp -file README.md
+
+    # Parse markdown using custom HTML template and open a preview
+    ./mdp -file README.md -t template-fmt.html.tmpl
 
     # Skip auto-preview
     ./mdp -file README.md -s
@@ -43,6 +53,7 @@ func main() {
 	// Define and parse flags
 	filename := flag.String("file", "", "Markdown file to preview")
 	skipPreview := flag.Bool("s", false, "Skip auto-preview")
+	templateFile := flag.String("t", "", "Alternative template name")
 	flag.Parse()
 
 	// Print the usage in case wrong flags are provided.
@@ -52,7 +63,7 @@ func main() {
 	}
 
 	// Do the work.
-	if err := doWork(*filename, os.Stdout, *skipPreview); err != nil {
+	if err := doWork(*filename, *templateFile, os.Stdout, *skipPreview); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -62,13 +73,16 @@ func main() {
 //   * Receives a markdown file
 //   * parses it into HTML
 //   * save the HTML to a new file
-func doWork(markdownFile string, outWriter io.Writer, skipPreview bool) error {
+func doWork(markdownFile string, templateFile string, outWriter io.Writer, skipPreview bool) error {
 	markdownData, err := ioutil.ReadFile(markdownFile)
 	if err != nil {
 		return err
 	}
 
-	htmlData := parseMarkdown(markdownData)
+	htmlData, err := parseMarkdown(markdownData, templateFile)
+	if err != nil {
+		return err
+	}
 
 	// Create a temporary file
 	temp, err := ioutil.TempFile("", "mdp*.html")
@@ -101,20 +115,40 @@ func doWork(markdownFile string, outWriter io.Writer, skipPreview bool) error {
 }
 
 // Converts Markdown data to HTML data.
-func parseMarkdown(markdownData []byte) []byte {
+func parseMarkdown(markdownData []byte, templateFile string) ([]byte, error) {
 	// https://github.com/russross/blackfriday
 	html := blackfriday.Run(markdownData)
 	// https://github.com/microcosm-cc/bluemonday
 	sanitizedHTML := bluemonday.UGCPolicy().SanitizeBytes(html)
 
+	// Parse the default template into a new template.
+	// By using this approach, we always have the default template ready to execute.
+	parsedTemplate, err := template.New("mdp").Parse(defaultTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	// If the user provides a template file, use that template instead.
+	if templateFile != "" {
+		parsedTemplate, err = template.ParseFiles(templateFile)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Create a buffer of bytes to write to a file
 	var buffer bytes.Buffer
 
-	buffer.WriteString(header)  // string
-	buffer.Write(sanitizedHTML) // bytes
-	buffer.WriteString(footer)  // string
+	// Replace the placeholders and write the result to the buffer
+	err = parsedTemplate.Execute(&buffer, templateProps{
+		Title: "Markdown Preview",
+		Body:  template.HTML(sanitizedHTML),
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // Saves HTML data to a specified outfile.

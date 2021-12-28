@@ -19,7 +19,10 @@ func TestParseContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result := parseMarkdown(markdownData)
+	result, err := parseMarkdown(markdownData, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expected, err := ioutil.ReadFile(goldenFile)
 	if err != nil {
@@ -39,7 +42,7 @@ func TestDoWork(t *testing.T) {
 
 	// Do all the work for converting Markdown to HTML and save it to a file.
 	skipPreview := true
-	if err := doWork(inputFile, &mockStdout, skipPreview); err != nil {
+	if err := doWork(inputFile, "", &mockStdout, skipPreview); err != nil {
 		t.Fatal(err)
 	}
 
