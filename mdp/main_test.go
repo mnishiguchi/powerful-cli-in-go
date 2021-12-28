@@ -38,7 +38,8 @@ func TestDoWork(t *testing.T) {
 	var mockStdout bytes.Buffer
 
 	// Do all the work for converting Markdown to HTML and save it to a file.
-	if err := doWork(inputFile, &mockStdout); err != nil {
+	skipPreview := true
+	if err := doWork(inputFile, &mockStdout, skipPreview); err != nil {
 		t.Fatal(err)
 	}
 
