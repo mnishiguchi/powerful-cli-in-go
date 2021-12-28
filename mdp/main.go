@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -39,7 +39,7 @@ func main() {
 	}
 
 	// Do the work.
-	if err := doWork(*filename); err != nil {
+	if err := doWork(*filename, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -49,18 +49,28 @@ func main() {
 //   * Receives a markdown file
 //   * parses it into HTML
 //   * save the HTML to a new file
-func doWork(markdownFile string) error {
+func doWork(markdownFile string, outWriter io.Writer) error {
 	markdownData, err := ioutil.ReadFile(markdownFile)
-
 	if err != nil {
 		return err
 	}
 
 	htmlData := parseMarkdown(markdownData)
 
-	// As an example, for "example.md" the outfile would be "example.md.html"
-	outfile := fmt.Sprintf("%s.html", filepath.Base(markdownFile))
+	// Create a temporary file
+	temp, err := ioutil.TempFile("", "mdp*.html")
+	if err != nil {
+		return err
+	}
 
+	// Close the temporary file because we are not writing any data to it
+	if err := temp.Close(); err != nil {
+		return err
+	}
+
+	// Print the temporary file name and save HTML to that file
+	outfile := temp.Name()
+	fmt.Fprintln(outWriter, outfile)
 	return saveHTML(outfile, htmlData)
 }
 

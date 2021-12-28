@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
 const (
 	inputFile  = "./testdata/test1.md"
-	resultFile = "test1.md.html"
 	goldenFile = "./testdata/test1.md.html"
 )
 
@@ -34,15 +34,23 @@ func TestParseContent(t *testing.T) {
 }
 
 func TestDoWork(t *testing.T) {
-	if err := doWork(inputFile); err != nil {
+	// Captures the outfile name that the doWork() function prints.
+	var mockStdout bytes.Buffer
+
+	// Do all the work for converting Markdown to HTML and save it to a file.
+	if err := doWork(inputFile, &mockStdout); err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := ioutil.ReadFile(resultFile)
+	// Read the resulting HTML from the outfile. The output contains a new line
+	// at the end so we want to remove it.
+	outfile := strings.TrimSpace(mockStdout.String())
+	result, err := ioutil.ReadFile(outfile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// Read the golden file.
 	expected, err := ioutil.ReadFile(goldenFile)
 	if err != nil {
 		t.Fatal(err)
@@ -54,5 +62,5 @@ func TestDoWork(t *testing.T) {
 		t.Error("Result content does not match golden file")
 	}
 
-	os.Remove(resultFile)
+	os.Remove(outfile)
 }
