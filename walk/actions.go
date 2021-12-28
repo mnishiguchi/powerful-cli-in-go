@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -24,4 +25,13 @@ func shouldBeExcluded(path string, ext string, minSize int64, info os.FileInfo) 
 func printFilePath(path string, outWriter io.Writer) error {
 	_, err := fmt.Fprintln(outWriter, path)
 	return err
+}
+
+func deleteFile(path string, logger *log.Logger) error {
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+
+	logger.Println(path)
+	return nil
 }
