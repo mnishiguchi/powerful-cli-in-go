@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -92,6 +93,10 @@ func doWork(markdownFile string, outWriter io.Writer, skipPreview bool) error {
 		return nil
 	}
 
+	// It is our responsibility to delete the temporary files.
+	// Ensure that the outfile is deleted when the current function returns.
+	defer os.Remove(outfile)
+
 	return preview(outfile)
 }
 
@@ -147,5 +152,12 @@ func preview(filename string) error {
 	}
 
 	// Open the file using the OS default program
-	return exec.Command(cPath, cParams...).Run()
+	err = exec.Command(cPath, cParams...).Run()
+
+	// Give the browser some time to open the file before deleting it.
+	// Adding a delay is not a recommended long-term solution. This is a quick fix
+	// so we can focus on the cleanup functionality.
+	time.Sleep(2 * time.Second)
+
+	return err
 }
