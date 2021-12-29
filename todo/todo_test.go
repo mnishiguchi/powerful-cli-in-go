@@ -4,7 +4,6 @@ name as the original name followed by the "_test" suffix. */
 package todo_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -83,7 +82,7 @@ func TestSaveGet(t *testing.T) {
 	}
 
 	// Create a temporary file.
-	tmp, err := ioutil.TempFile("", "")
+	tmp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %s", err)
 	}

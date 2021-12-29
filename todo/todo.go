@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -61,12 +60,12 @@ func (l *TodoList) Save(filename string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filename, jsonifiedList, 0644)
+	return os.WriteFile(filename, jsonifiedList, 0644)
 }
 
 // Opens the provided file name, decodes the JSON data and parses it into a list.
 func (l *TodoList) Get(filename string) error {
-	file, err := ioutil.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil

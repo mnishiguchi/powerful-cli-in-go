@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,7 +109,7 @@ func TestRunDeleteFiles(t *testing.T) {
 				t.Errorf("Expected %q, got %q instead\n", tc.expected, res)
 			}
 
-			filesLeft, err := ioutil.ReadDir(tempDir)
+			filesLeft, err := os.ReadDir(tempDir)
 			if err != nil {
 				t.Errorf("Expected %d files left, got %d instead\n", tc.nNoDelete, len(filesLeft))
 			}
@@ -195,7 +194,7 @@ func TestRunArchive(t *testing.T) {
 			}
 
 			// Read the content of the temprary archive directory.
-			filesArchived, err := ioutil.ReadDir(archiveDir)
+			filesArchived, err := os.ReadDir(archiveDir)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -214,7 +213,7 @@ func createTempDir(t *testing.T, extToHowMany map[string]int) (dirname string, c
 	t.Helper() // Mark this test as a test helper
 
 	// Create a temporary directory
-	tempDir, err := ioutil.TempDir("", "walktest")
+	tempDir, err := os.MkdirTemp("", "walktest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +222,7 @@ func createTempDir(t *testing.T, extToHowMany map[string]int) (dirname string, c
 		for j := 1; j <= howMany; j++ {
 			fileName := fmt.Sprintf("file%d%s", j, ext)
 			filePath := filepath.Join(tempDir, fileName)
-			if err := ioutil.WriteFile(filePath, []byte("dummy"), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte("dummy"), 0644); err != nil {
 				t.Fatal(err)
 			}
 		}

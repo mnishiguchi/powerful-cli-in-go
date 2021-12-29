@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -14,7 +13,7 @@ const (
 )
 
 func TestParseContent(t *testing.T) {
-	markdownData, err := ioutil.ReadFile(inputFile)
+	markdownData, err := os.ReadFile(inputFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +23,7 @@ func TestParseContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected, err := ioutil.ReadFile(goldenFile)
+	expected, err := os.ReadFile(goldenFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,13 +48,13 @@ func TestDoWork(t *testing.T) {
 	// Read the resulting HTML from the outfile. The output contains a new line
 	// at the end so we want to remove it.
 	outfile := strings.TrimSpace(mockStdout.String())
-	result, err := ioutil.ReadFile(outfile)
+	result, err := os.ReadFile(outfile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Read the golden file.
-	expected, err := ioutil.ReadFile(goldenFile)
+	expected, err := os.ReadFile(goldenFile)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -74,7 +73,7 @@ func main() {
 //   * parses it into HTML
 //   * save the HTML to a new file
 func doWork(markdownFile string, templateFile string, outWriter io.Writer, skipPreview bool) error {
-	markdownData, err := ioutil.ReadFile(markdownFile)
+	markdownData, err := os.ReadFile(markdownFile)
 	if err != nil {
 		return err
 	}
@@ -85,7 +84,7 @@ func doWork(markdownFile string, templateFile string, outWriter io.Writer, skipP
 	}
 
 	// Create a temporary file
-	temp, err := ioutil.TempFile("", "mdp*.html")
+	temp, err := os.CreateTemp("", "mdp*.html")
 	if err != nil {
 		return err
 	}
@@ -155,7 +154,7 @@ func parseMarkdown(markdownData []byte, templateFile string) ([]byte, error) {
 func saveHTML(outfile string, htmlData []byte) error {
 	// The 644 file permission is for creating a file that is both reacable and
 	// writable by the owner but only readable by anyone else.
-	return ioutil.WriteFile(outfile, htmlData, 0644)
+	return os.WriteFile(outfile, htmlData, 0644)
 }
 
 // Previews the file in a browser.
