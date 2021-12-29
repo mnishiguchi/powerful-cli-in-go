@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -121,10 +122,94 @@ func TestRunDeleteFiles(t *testing.T) {
 			}
 		})
 	}
-
 }
 
-// A test helper that creates a temporary directory.
+func TestRunArchive(t *testing.T) {
+	testCases := []struct {
+		name         string
+		cfg          config
+		extNoArchive string
+		nArchive     int
+		nNoArchive   int
+	}{
+		{name: "ArchiveExtensionNoMatch",
+			cfg:          config{ext: ".log"},
+			extNoArchive: ".gz",
+			nArchive:     0,
+			nNoArchive:   10},
+		{name: "ArchiveExtensionMatch",
+			cfg:          config{ext: ".log"},
+			extNoArchive: "",
+			nArchive:     10,
+			nNoArchive:   0},
+		{name: "ArchiveExtensionMixed",
+			cfg:          config{ext: ".log"},
+			extNoArchive: ".gz",
+			nArchive:     5,
+			nNoArchive:   5},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Buffer to capture the output
+			var buffer bytes.Buffer
+
+			// Create a temporary directory with some files for testing.
+			tempDir, cleanupTempDir := createTempDir(t, map[string]int{
+				tc.cfg.ext:      tc.nArchive,
+				tc.extNoArchive: tc.nNoArchive,
+			})
+			defer cleanupTempDir()
+
+			// Create a archive directory with no files.
+			archiveDir, cleanupArchive := createTempDir(t, nil)
+			defer cleanupArchive()
+
+			// Pass the archive directory to the config struct before invoking the
+			// run() function.
+			tc.cfg.archiveDir = archiveDir
+
+			// Invoke the run() function, which will output to the buffer.
+			if err := run(tempDir, &buffer, tc.cfg); err != nil {
+				t.Fatal(err)
+			}
+
+			// Validate the output assuming the run functions completes successfully.
+			// Since the test create the directory and files dynamically for each test.
+			// we do not have the name of the files beforehand.
+			//
+			// Find all the file names from the temporary directory that match the
+			// archiving extension.
+			fileNamePattern := filepath.Join(tempDir, fmt.Sprintf("*%s", tc.cfg.ext))
+
+			expectedFiles, err := filepath.Glob(fileNamePattern)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Verify the output.
+			expectedOutput := strings.Join(expectedFiles, "\n")
+			actualOutput := strings.TrimSpace(buffer.String()) // remove the last new line
+			if expectedOutput != actualOutput {
+				t.Errorf("Expected %q, got %q instead\n", expectedOutput, actualOutput)
+			}
+
+			// Read the content of the temprary archive directory.
+			filesArchived, err := ioutil.ReadDir(archiveDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Verify the number of files archived.
+			if len(filesArchived) != tc.nArchive {
+				t.Errorf("Expected %d files archived, got %d instead\n", tc.nArchive, len(filesArchived))
+			}
+		})
+	}
+}
+
+// A test helper that creates a temporary directory and create files in that
+// directory based on the provided map.
 func createTempDir(t *testing.T, extToHowMany map[string]int) (dirname string, cleanup func()) {
 	t.Helper() // Mark this test as a test helper
 

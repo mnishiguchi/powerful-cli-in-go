@@ -15,6 +15,7 @@ type config struct {
 	isListAction   bool   // list files
 	isDeleteAction bool   // delete files
 	logWriter      io.Writer
+	archiveDir     string
 }
 
 // ## Examples
@@ -40,6 +41,7 @@ func main() {
 	// Action options
 	argListAction := flag.Bool("list", false, "List files only")
 	argDeleteAction := flag.Bool("delete", false, "Delete files")
+	argArchiveDir := flag.String("archive", "", "Archive directory")
 	// Filter options
 	argFilterByExt := flag.String("ext", "", "File extension to filter out")
 	argFilterBySize := flag.Int64("size", 0, "Minimum file size")
@@ -65,6 +67,7 @@ func main() {
 		isListAction:   *argListAction,
 		isDeleteAction: *argDeleteAction,
 		logWriter:      f,
+		archiveDir:     *argArchiveDir,
 	}
 
 	if err := run(*argRootDir, os.Stdout, cfg); err != nil {
@@ -97,6 +100,12 @@ func run(rootDir string, outWriter io.Writer, cfg config) error {
 			// If the list option was explicitly set, do nothing else.
 			if cfg.isListAction {
 				return printFilePath(path, outWriter)
+			}
+
+			if cfg.archiveDir != "" {
+				if err := archiveFile(cfg.archiveDir, rootDir, path); err != nil {
+					return err
+				}
 			}
 
 			if cfg.isDeleteAction {
