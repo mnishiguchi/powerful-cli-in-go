@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -81,5 +83,40 @@ func TestRun(t *testing.T) {
 				t.Errorf("Expected %q, got %q instead", tc.expected, &outputWriter)
 			}
 		})
+	}
+}
+
+// Benchmarks the run() function.
+//
+// ## Examples
+//
+//   # Execute the benchmark
+//   go test -bench . -run ^$
+//   go test -bench . -run ^$ -benchtime=10x
+//   go test -bench . -run ^$ -benchtime=10x | tee log/bench_results_00.txt
+//
+//   # Execute the CPU profiler
+//   go test -bench . -run ^$ -benchtime=10x -cpuprofile log/cpu00.pprof
+//   go tool pprof cpu00.pprof
+//
+//   # Execute the memory profiler
+//   go test -bench . -run ^$ -benchtime=10x -memprofile log/mem00.pprof
+//   go tool pprof -alloc_space log/mem00.pprof
+//
+//   # Display the total memory allocation
+//   go test -bench . -run ^$ -benchtime=10x -benchmem | tee log/bench_results_00m.txt
+//
+func BenchmarkRun(b *testing.B) {
+	fileNames, err := filepath.Glob("./testdata/benchmark/*.csv")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if err := run(fileNames, "avg", 2, io.Discard); err != nil {
+			b.Error(err)
+		}
 	}
 }

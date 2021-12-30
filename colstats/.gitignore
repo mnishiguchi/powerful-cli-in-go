@@ -1,3 +1,5 @@
 tmp/
 log/
-colstats
+colstats*
+testdata/benchmark/
+*.pprof
