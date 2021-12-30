@@ -33,7 +33,7 @@ func TestOperations(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				actual := tc.opFunc(data[index])
 
-				if !veryclose(actual, expected) {
+				if !equalFloat64(actual, expected, 4e-16) {
 					t.Errorf("Expected %g, got %g instead", expected, actual)
 				}
 			})
@@ -116,7 +116,7 @@ func TestCSV2Float(t *testing.T) {
 
 // Compares floating-point numbers.
 // See https://go.dev/src/math/all_test.go
-func tolerance(a, b, e float64) bool {
+func equalFloat64(a, b, e float64) bool {
 	// Multiplying by e here can underflow denormal values to zero.
 	// Check a==b so that at least if a and b are small and identical
 	// we say they match.
@@ -138,6 +138,3 @@ func tolerance(a, b, e float64) bool {
 	}
 	return d < e
 }
-func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
-func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
-func soclose(a, b, e float64) bool { return tolerance(a, b, e) }

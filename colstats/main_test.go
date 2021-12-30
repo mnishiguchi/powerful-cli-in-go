@@ -106,6 +106,10 @@ func TestRun(t *testing.T) {
 //   # Display the total memory allocation
 //   go test -bench . -run ^$ -benchtime=10x -benchmem | tee log/bench_results_00m.txt
 //
+//   # Trace our program
+//   go test -bench . -run ^$ -benchtime=10x -trace log/trace01.out
+//   go tool trace log/trace01.out
+//
 func BenchmarkRun(b *testing.B) {
 	fileNames, err := filepath.Glob("./testdata/benchmark/*.csv")
 	if err != nil {

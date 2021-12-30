@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"sync"
 )
 
 // ## Examples
@@ -50,28 +52,85 @@ func run(fileNames []string, op string, column int, out io.Writer) error {
 	// A slice we use to consolidated the parsed values from all the files.
 	consolidatedData := make([]float64, 0)
 
-	for _, fileName := range fileNames {
-		f, err := os.Open(fileName)
-		if err != nil {
-			return fmt.Errorf("Cannot open file: %w", err)
-		}
+	// Create the channel to receive results or errors of operations.
+	// Using an empty struct is a common pattern when we do not need to send any data.
+	chFileName := make(chan string)   // a queue for file names to be processed
+	chResults := make(chan []float64) // results of processing each file
+	chErr := make(chan error)         // potential errors
+	chDone := make(chan struct{})     // notify when all files have been processed
 
-		// Parse the CSV into a slice of float64 to consolidate.
-		values, err := csv2float(f, column)
-		if err != nil {
-			return err
-		}
+	// The WaitGroup provides a mechanism to coordinate the goroutine execution.
+	csvWorkerWaitGroup := sync.WaitGroup{}
 
-		if err := f.Close(); err != nil {
-			return err
-		}
+	go func() {
+		// At the end, close the channel indicating no more work is left to do.
+		defer close(chFileName)
 
-		consolidatedData = append(consolidatedData, values...)
+		// Push all the file names to the chFileName channel so each one will be
+		// processed when a worker is available.
+		for _, fileName := range fileNames {
+			chFileName <- fileName
+		}
+	}()
+
+	// Create a worker goroutine per CPU.
+	for i := 0; i < runtime.NumCPU(); i++ {
+		// Increment the WaitGroup counter to indicate a running goroutine.
+		csvWorkerWaitGroup.Add(1)
+
+		// A worker goroutine.
+		go func() {
+			// Decrement the WaitGroup counter when the function finishes.
+			defer csvWorkerWaitGroup.Done()
+
+			// This loop gets values from the chFileName channel until it is closed.
+			for fileName := range chFileName {
+				// Open the file for reading.
+				f, err := os.Open(fileName)
+				if err != nil {
+					chErr <- fmt.Errorf("Cannot open file: %w", err)
+					return
+				}
+
+				// Parse the CSV into a slice of float64 to consolidate.
+				results, err := csv2float(f, column)
+				if err != nil {
+					chErr <- err
+				}
+
+				if err := f.Close(); err != nil {
+					chErr <- err
+				}
+
+				chResults <- results
+			}
+		}()
 	}
 
-	// Execute the user-specified operation and print out the results.
-	_, err := fmt.Fprintln(out, operationFunc(consolidatedData))
+	go func() {
+		// Wait until all files have been processed.
+		csvWorkerWaitGroup.Wait()
 
-	// return any potential error.
-	return err
+		// Close the chDone channel signaling that the process is complete.
+		close(chDone)
+	}()
+
+	// This blocks the execution of the program until any of the channels is
+	// ready to communicate.
+	for {
+		// The conditions are communication operations through a channel.
+		select {
+		case err := <-chErr:
+			return err
+		case results := <-chResults:
+			// In Go, it is idiomatic to use a channel to communicate the values
+			// between goroutines so we can avoid a date race condition.
+			consolidatedData = append(consolidatedData, results...)
+		case <-chDone:
+			// Execute the user-specified operation and print out the results.
+			_, err := fmt.Fprintln(out, operationFunc(consolidatedData))
+			// return any potential error.
+			return err
+		}
+	}
 }
