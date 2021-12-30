@@ -28,18 +28,29 @@ func avg(data []float64) float64 {
 func csv2float(inputReader io.Reader, column int) ([]float64, error) {
 	// Create a CSV reader that reads data from CSV files
 	csvReader := csv.NewReader(inputReader)
+	// Reuse the same slice to reduce the memory allocation
+	csvReader.ReuseRecord = true
 
 	// Convert one-based index to zero-based index
 	column--
 
-	allRecords, err := csvReader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("Cannot read data from file: %w", err)
-	}
-
 	var data []float64
 
-	for i, row := range allRecords {
+	// Use an infinite loop since we do not know beforehand how many record it
+	// needs to be read.
+	for i := 0; ; i++ {
+		// Read one record at a time.
+		row, err := csvReader.Read()
+
+		// Determine when we reach the end of the file and break out of the loop.
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("Cannot read data from file: %w", err)
+		}
+
 		// Ignore the title row.
 		if i == 0 {
 			continue
