@@ -8,10 +8,24 @@ import (
 
 /*
 This is a variant of the step type that checks the STDOUT for potential error.
+
 Extends the step type. Implements the executer interface.
 */
 type exceptionStep struct {
 	step // Extends the step type by embedding the step type.
+}
+
+// A constructor of the exceptionStep type.
+func newExceptionStep(
+	name,
+	executable,
+	successMsg,
+	targetProjectDir string,
+	args []string,
+) exceptionStep {
+	s := exceptionStep{}
+	s.step = newStep(name, executable, successMsg, targetProjectDir, args)
+	return s
 }
 
 func (s exceptionStep) execute() (string, error) {

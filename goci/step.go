@@ -14,15 +14,21 @@ type step struct {
 // Instantiates a new step.
 // Go does not have formal constructors like other OO languages but it is a good
 // practice to ensure callers instantiate types correctly.
-// func newStep(name, executable, successMsg, targetProjectDir string, args []string) step {
-// 	return step{
-// 		name:             name,
-// 		executable:       executable,
-// 		successMsg:       successMsg,
-// 		targetProjectDir: targetProjectDir,
-// 		args:             args,
-// 	}
-// }
+func newStep(
+	name,
+	executable,
+	successMsg,
+	targetProjectDir string,
+	args []string,
+) step {
+	return step{
+		name:             name,
+		executable:       executable,
+		successMsg:       successMsg,
+		targetProjectDir: targetProjectDir,
+		args:             args,
+	}
+}
 
 func (s step) execute() (string, error) {
 	cmd := exec.Command(s.executable, s.args...)
