@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestRun(t *testing.T) {
@@ -24,6 +26,7 @@ func TestRun(t *testing.T) {
 		expected       string
 		expectedErr    error
 		shouldSetupGit bool
+		mockCmd        func(ctx context.Context, name string, arg ...string) *exec.Cmd
 	}{
 		{name: "success",
 			projectDir: "./testdata/tool/",
@@ -32,30 +35,58 @@ func TestRun(t *testing.T) {
 				"gofmt: SUCCESS\n" +
 				"git push: SUCCESS\n",
 			expectedErr:    nil,
-			shouldSetupGit: true},
+			shouldSetupGit: true,
+			mockCmd:        nil},
+		{name: "successMock",
+			projectDir: "./testdata/tool/",
+			expected: "go build: SUCCESS\n" +
+				"go test: SUCCESS\n" +
+				"gofmt: SUCCESS\n" +
+				"git push: SUCCESS\n",
+			expectedErr:    nil,
+			shouldSetupGit: true,
+			mockCmd:        mockCmdContext},
 		{name: "fail",
 			projectDir:     "./testdata/toolErr/",
 			expected:       "",
 			expectedErr:    &stepErr{step: "go build"},
-			shouldSetupGit: false},
+			shouldSetupGit: false,
+			mockCmd:        nil},
 		{name: "failFormat",
 			projectDir:     "./testdata/toolFmtErr/",
 			expected:       "",
 			expectedErr:    &stepErr{step: "go fmt"},
-			shouldSetupGit: false},
+			shouldSetupGit: false,
+			mockCmd:        nil},
+		{name: "failTimeout",
+			projectDir:     "./testdata/tool/",
+			expected:       "",
+			expectedErr:    context.DeadlineExceeded,
+			shouldSetupGit: false,
+			mockCmd:        mockCmdTimeout},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// A buffer to capture the output
-			var outWriter bytes.Buffer
 
 			if tc.shouldSetupGit {
-				cleanupFunc := setupGit(t, tc.projectDir)
+				_, err := exec.LookPath("git")
+				if err != nil {
+					t.Skip("Git not installed. Skipping test.")
+				}
+
+				cleanup := setupGit(t, tc.projectDir)
 
 				// Ensure that the resources are deleted at the end.
-				defer cleanupFunc()
+				defer cleanup()
 			}
+
+			if tc.mockCmd != nil {
+				cmdWithContext = tc.mockCmd
+			}
+
+			// A buffer to capture the output
+			var outWriter bytes.Buffer
 
 			err := run(tc.projectDir, &outWriter)
 
@@ -175,5 +206,58 @@ func setupGit(t *testing.T, targetProjectDir string) func() {
 		os.RemoveAll(tempDir)
 		// Delete the local .git subdirectory from the target project directory.
 		os.RemoveAll(filepath.Join(targetProjectDirAbs, ".git"))
+	}
+}
+
+// This is a mock for the func exec.CommandContext() function.
+func mockCmdContext(ctx context.Context, executable string, args ...string) *exec.Cmd {
+	// Build an argument list with "-test.run=TestHelperProcess" so that Go will
+	// invoke our TestHelperProcess() function before running the tests.
+	// E.g., [-test.run=TestHelperProcess git push origin main]
+	goExecutableArgs := []string{"-test.run=TestHelperProcess"}
+	goExecutableArgs = append(goExecutableArgs, executable)
+	goExecutableArgs = append(goExecutableArgs, args...)
+
+	// os.Args[0] - the full path of the Go executable.
+	cmd := exec.CommandContext(ctx, os.Args[0], goExecutableArgs...)
+	// Add the environment variable "GO_WANT_HELPER_PROCESS=1" to the command
+	// environemnt to ensure the test is not skipped.
+	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+
+	return cmd
+}
+
+// This is a mock for the func exec.CommandContext() function.
+func mockCmdTimeout(ctx context.Context, exe string, args ...string) *exec.Cmd {
+	cmd := mockCmdContext(ctx, exe, args...)
+	cmd.Env = append(cmd.Env, "GO_HELPER_TIMEOUT=1")
+
+	return cmd
+}
+
+// Simulates the Go command behavior that we want to test. We name this function
+// TestHelperProcess() following the standard library convention.
+func TestHelperProcess(t *testing.T) {
+	// Skip this test unless we specify "GO_WANT_HELPER_PROCESS=1".
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	// Simulate a long-running process.
+	if os.Getenv("GO_HELPER_TIMEOUT") == "1" {
+		time.Sleep(15 * time.Second)
+	}
+
+	// ?????
+	if os.Args[2] == "git" {
+		fmt.Fprintln(os.Stdout, "Everything up-to-date")
+		os.Exit(0)
+	}
+
+	os.Exit(1)
+
+	_, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("Git not installed. Skipping test.")
 	}
 }

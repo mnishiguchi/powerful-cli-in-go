@@ -47,12 +47,17 @@ func newTimeoutStep(
 	return s
 }
 
+// When testing, we override the original function with the mock function.
+// For a more robust approach, we can pass the function we want to override as a
+// parameter or use an interface.
+var cmdWithContext = exec.CommandContext
+
 func (s timeoutStep) execute() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	// Free up the resources when context is no longer needed.
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, s.executable, s.args...)
+	cmd := cmdWithContext(ctx, s.executable, s.args...)
 	cmd.Dir = s.targetProjectDir
 
 	if err := cmd.Run(); err != nil {
