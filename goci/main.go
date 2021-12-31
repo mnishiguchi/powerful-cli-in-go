@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 )
 
 func main() {
@@ -24,25 +23,32 @@ func run(projectDir string, outWriter io.Writer) error {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
+	// _, err := fmt.Fprintln(outWriter, "go build: SUCCESS")
+	pipeline := make([]step, 1)
 	// Validate the program's correctness by building the target project without
 	// creating an executable file.
-
 	// Running "go build" does not create an executable file when building
-	// multiple packages at the same time. So we add one extra package from the
-	// Go standard library to the argument list.
-	args := []string{"build", ".", "errors"}
-	cmd := exec.Command("go", args...)
-	// set the working directory for the external command execution.
-	cmd.Dir = projectDir
-	if err := cmd.Run(); err != nil {
-		// return fmt.Errorf("'go build' failed: %s", err)
-		return &stepErr{
-			step:  "go build",
-			msg:   "go build failed",
-			cause: err,
+	// multiple packages at the same time.
+	pipeline[0] = step{
+		name:             "go build",
+		executable:       "go",
+		successMsg:       "go build: SUCCESS",
+		targetProjectDir: projectDir,
+		args:             []string{"build", ".", "errors"},
+	}
+
+	// Execute each step looping through the pipeline.
+	for _, s := range pipeline {
+		successMsg, err := s.execute()
+		if err != nil {
+			return err
+		}
+
+		_, err = fmt.Fprintln(outWriter, successMsg)
+		if err != nil {
+			return err
 		}
 	}
 
-	_, err := fmt.Fprintln(outWriter, "go build: SUCCESS")
-	return err
+	return nil
 }
