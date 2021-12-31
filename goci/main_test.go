@@ -15,7 +15,7 @@ func TestRun(t *testing.T) {
 	}{
 		{name: "success",
 			projectDir:  "./testdata/tool/",
-			expected:    "go build: SUCCESS\n",
+			expected:    "go build: SUCCESS\ngo test: SUCCESS\n",
 			expectedErr: nil},
 		{name: "fail",
 			projectDir:  "./testdata/toolErr/",

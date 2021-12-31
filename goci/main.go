@@ -23,8 +23,7 @@ func run(projectDir string, outWriter io.Writer) error {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
-	// _, err := fmt.Fprintln(outWriter, "go build: SUCCESS")
-	pipeline := make([]step, 1)
+	pipeline := make([]step, 2)
 	// Validate the program's correctness by building the target project without
 	// creating an executable file.
 	// Running "go build" does not create an executable file when building
@@ -35,6 +34,13 @@ func run(projectDir string, outWriter io.Writer) error {
 		successMsg:       "go build: SUCCESS",
 		targetProjectDir: projectDir,
 		args:             []string{"build", ".", "errors"},
+	}
+	pipeline[1] = step{
+		name:             "go test",
+		executable:       "go",
+		successMsg:       "go test: SUCCESS",
+		targetProjectDir: projectDir,
+		args:             []string{"test", "-v"},
 	}
 
 	// Execute each step looping through the pipeline.
