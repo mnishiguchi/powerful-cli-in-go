@@ -7,6 +7,10 @@ import (
 	"os"
 )
 
+type executer interface {
+	execute() (string, error)
+}
+
 func main() {
 	projectDir := flag.String("p", "", "Go Project directory")
 	flag.Parse()
@@ -23,7 +27,7 @@ func run(projectDir string, outWriter io.Writer) error {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
-	pipeline := make([]step, 2)
+	pipeline := make([]executer, 3)
 	// Validate the program's correctness by building the target project without
 	// creating an executable file.
 	// Running "go build" does not create an executable file when building
@@ -41,6 +45,18 @@ func run(projectDir string, outWriter io.Writer) error {
 		successMsg:       "go test: SUCCESS",
 		targetProjectDir: projectDir,
 		args:             []string{"test", "-v"},
+	}
+	// Some programs like "gofmt" exit with a successful return code even when
+	// something goes wrong and a message in STDOUT or STDERR provides details
+	// about the error condition.
+	pipeline[2] = exceptionStep{
+		step: step{
+			name:             "go fmt",
+			executable:       "gofmt",
+			successMsg:       "gofmt: SUCCESS",
+			targetProjectDir: projectDir,
+			args:             []string{"-l", "."},
+		},
 	}
 
 	// Execute each step looping through the pipeline.

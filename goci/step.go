@@ -2,6 +2,7 @@ package main
 
 import "os/exec"
 
+// Implements the executer interface.
 type step struct {
 	name             string
 	executable       string

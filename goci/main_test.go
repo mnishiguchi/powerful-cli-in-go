@@ -15,12 +15,16 @@ func TestRun(t *testing.T) {
 	}{
 		{name: "success",
 			projectDir:  "./testdata/tool/",
-			expected:    "go build: SUCCESS\ngo test: SUCCESS\n",
+			expected:    "go build: SUCCESS\ngo test: SUCCESS\ngofmt: SUCCESS\n",
 			expectedErr: nil},
 		{name: "fail",
 			projectDir:  "./testdata/toolErr/",
 			expected:    "",
 			expectedErr: &stepErr{step: "go build"}},
+		{name: "failFormat",
+			projectDir:  "./testdata/toolFmtErr/",
+			expected:    "",
+			expectedErr: &stepErr{step: "go fmt"}},
 	}
 
 	for _, tc := range testCases {
