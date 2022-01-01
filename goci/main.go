@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -68,18 +70,52 @@ func run(projectDir string, outWriter io.Writer) error {
 		10*time.Second,
 	)
 
-	// Execute each step looping through the pipeline.
-	for _, s := range pipeline {
-		successMsg, err := s.execute()
-		if err != nil {
-			return err
+	// Go relays signals using a channel of type os.Signal.
+	// A buffered channel of size 1, which handles at least one signal correctly
+	// in case it receives many signals.
+	chSignal := make(chan os.Signal, 1)
+
+	// Channels that communicate the status back to the main goroutine.
+	chErr := make(chan error)     // notifies potential errors
+	chDone := make(chan struct{}) // notifies the loop conclusion
+
+	// The signal.Notify() from the os/signal package relays signals to our
+	// chSignal channel. We are only interested in two termination signals:
+	// SIGINT and SIGTERM. All other signails will be ignored and not relayed to
+	// this channel.
+	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		// Execute each step looping through the pipeline.
+		for _, s := range pipeline {
+			successMsg, err := s.execute()
+			if err != nil {
+				chErr <- err
+				return
+			}
+
+			_, err = fmt.Fprintln(outWriter, successMsg)
+			if err != nil {
+				chErr <- err
+				return
+			}
 		}
 
-		_, err = fmt.Fprintln(outWriter, successMsg)
-		if err != nil {
+		close(chDone)
+	}()
+
+	// Decide what to do based on communication received in one of the channels.
+	for {
+		select {
+		case receivedSignal := <-chSignal:
+			signal.Stop(chSignal) // Stop receiving signals
+			return fmt.Errorf("%s: Exiting: %w", receivedSignal, ErrSignal)
+
+		case err := <-chErr:
 			return err
+
+		case <-chDone:
+			return nil
 		}
 	}
-
-	return nil
 }

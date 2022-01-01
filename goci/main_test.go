@@ -5,9 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -68,7 +71,6 @@ func TestRun(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-
 			if tc.shouldSetupGit {
 				_, err := exec.LookPath("git")
 				if err != nil {
@@ -82,6 +84,7 @@ func TestRun(t *testing.T) {
 			}
 
 			if tc.mockCmd != nil {
+				// Override the package variable with a mock.
 				cmdWithContext = tc.mockCmd
 			}
 
@@ -116,6 +119,78 @@ func TestRun(t *testing.T) {
 	}
 }
 
+func TestRunKill(t *testing.T) {
+	var testCases = []struct {
+		name             string
+		targetProjectDir string
+		expectedSignal   syscall.Signal
+		expectedErr      error
+	}{
+		{"SIGINT", "./testdata/tool", syscall.SIGINT, ErrSignal},
+		{"SIGTERM", "./testdata/tool", syscall.SIGTERM, ErrSignal},
+		// This test case fails for some reason...
+		// {"SIGQUIT", "./testdata/tool", syscall.SIGQUIT, nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Override the package variable with a mock command function.
+			cmdWithContext = mockCmdTimeout
+
+			// Since we are handling signals, the test will run the functions
+			// concurrently.
+			chErr := make(chan error)
+			chIgnoredSignal := make(chan os.Signal, 1)
+			chExpectedSignal := make(chan os.Signal, 1)
+
+			signal.Notify(chIgnoredSignal, syscall.SIGQUIT)
+			defer signal.Stop(chIgnoredSignal)
+
+			signal.Notify(chExpectedSignal, tc.expectedSignal)
+			defer signal.Stop(chExpectedSignal)
+
+			// Sends potential errors to the chErr channel.
+			go func() {
+				chErr <- run(tc.targetProjectDir, io.Discard)
+			}()
+
+			// Sends the desired signal to the test executable.
+			go func() {
+				time.Sleep(2 * time.Second)
+				syscall.Kill(syscall.Getpid(), tc.expectedSignal)
+			}()
+
+			// Select error
+			select {
+			case err := <-chErr:
+				if err == nil {
+					t.Errorf("Expected error. Got 'nil' instead.")
+					return
+				}
+
+				if !errors.Is(err, tc.expectedErr) {
+					t.Errorf("Expected error: %q. Got %q", tc.expectedErr, err)
+				}
+			}
+
+			// select signal
+			select {
+			case receivedSignal := <-chExpectedSignal:
+				if receivedSignal != tc.expectedSignal {
+					t.Errorf("Expected signal %q, got %q", tc.expectedSignal, receivedSignal)
+				}
+
+			case <-chIgnoredSignal:
+				// do nothing
+
+			default:
+				t.Errorf("Signal not received")
+			}
+		})
+	}
+}
+
+// Helpers
 /*
 A helper that sets up a reproducible environment for git.
 

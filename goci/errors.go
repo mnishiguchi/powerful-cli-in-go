@@ -5,8 +5,10 @@ import (
 	"fmt"
 )
 
+// Custom errors are useful in testing.
 var (
 	ErrValidation = errors.New("Validation failed")
+	ErrSignal     = errors.New("Received signal")
 )
 
 /*
