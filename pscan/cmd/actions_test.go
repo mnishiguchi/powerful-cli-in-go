@@ -89,15 +89,15 @@ func TestHostActions(t *testing.T) {
 			defer cleanup()
 
 			// Define var to capture the action output
-			var outWriter bytes.Buffer
+			var actualOutput bytes.Buffer
 
 			// Execute the action and capture the output
-			if err := tc.actionFn(&outWriter, temp, tc.args); err != nil {
+			if err := tc.actionFn(&actualOutput, temp, tc.args); err != nil {
 				t.Fatalf("Expected no error, got %q\n", err)
 			}
 
-			if outWriter.String() != tc.expectedOutput {
-				t.Errorf("Expected output %q, got %q\n", tc.expectedOutput, outWriter.String())
+			if actualOutput.String() != tc.expectedOutput {
+				t.Errorf("Expected output %q, got %q\n", tc.expectedOutput, actualOutput.String())
 			}
 		})
 	}
@@ -122,45 +122,44 @@ func TestIntegration(t *testing.T) {
 		"host3",
 	}
 
-	// Define var to capture the action output
-	var outWriter bytes.Buffer
+	// Define buffers to capture the output
+	var actualOutput, expectedOutput bytes.Buffer
 
-	expectedOutput := ""
 	// add
 	for _, v := range hostNames {
-		expectedOutput += fmt.Sprintf("Added host: %s\n", v)
+		expectedOutput.WriteString(fmt.Sprintf("Added host: %s\n", v))
 	}
 	// list
-	expectedOutput += strings.Join(hostNames, "\n")
-	expectedOutput += fmt.Sprintln()
+	expectedOutput.WriteString(strings.Join(hostNames, "\n"))
+	expectedOutput.WriteString("\n")
 	// delete
-	expectedOutput += fmt.Sprintf("Deleted host: %s\n", hostToDelete)
+	expectedOutput.WriteString(fmt.Sprintf("Deleted host: %s\n", hostToDelete))
 	// list
-	expectedOutput += strings.Join(hostsAfterDeletion, "\n")
-	expectedOutput += fmt.Sprintln()
+	expectedOutput.WriteString(strings.Join(hostsAfterDeletion, "\n"))
+	expectedOutput.WriteString("\n")
 
 	// add
-	if err := addAction(&outWriter, temp, hostNames); err != nil {
+	if err := addAction(&actualOutput, temp, hostNames); err != nil {
 		t.Fatalf("Expected no error, got %q\n", err)
 	}
 
 	// list
-	if err := listAction(&outWriter, temp, hostNames); err != nil {
+	if err := listAction(&actualOutput, temp, hostNames); err != nil {
 		t.Fatalf("Expected no error, got %q\n", err)
 	}
 
 	// delete
-	if err := deleteAction(&outWriter, temp, []string{hostToDelete}); err != nil {
+	if err := deleteAction(&actualOutput, temp, []string{hostToDelete}); err != nil {
 		t.Fatalf("Expected no error, got %q\n", err)
 	}
 
 	// list
-	if err := listAction(&outWriter, temp, hostNames); err != nil {
+	if err := listAction(&actualOutput, temp, hostNames); err != nil {
 		t.Fatalf("Expected no error, got %q\n", err)
 	}
 
 	// Verify the command output
-	if outWriter.String() != expectedOutput {
-		t.Errorf("expected output %q, got %q\n", expectedOutput, outWriter.String())
+	if actualOutput.String() != expectedOutput.String() {
+		t.Errorf("expected output %q, got %q\n", expectedOutput.String(), actualOutput.String())
 	}
 }

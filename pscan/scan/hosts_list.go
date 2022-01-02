@@ -2,6 +2,7 @@ package scan
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -67,13 +68,13 @@ func (hl *HostList) Load(hostsFile string) error {
 
 // Save saves hosts list to a hosts file.
 func (hl *HostList) Save(hostsFile string) error {
-	output := ""
+	var output bytes.Buffer
 
 	for _, h := range hl.Hosts {
-		output += fmt.Sprintln(h)
+		output.WriteString(fmt.Sprintln(h))
 	}
 
-	return os.WriteFile(hostsFile, []byte(output), 0644)
+	return os.WriteFile(hostsFile, output.Bytes(), 0644)
 }
 
 // Search searches searches for a host in the list.
