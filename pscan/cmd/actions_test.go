@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -103,8 +105,63 @@ func TestHostActions(t *testing.T) {
 	}
 }
 
+func TestScanAction(t *testing.T) {
+	hosts := []string{
+		"localhost",
+		"unknownhostoutthere", // This does not exist in our network
+	}
+
+	// Set up the test with the host names.
+	temp, cleanup := setup(t, hosts, true)
+	defer cleanup()
+
+	// Initialize ports (1 open, 1 closed)
+	ports := []int{}
+
+	for i := 0; i < 2; i++ {
+		ln, err := net.Listen("tcp", net.JoinHostPort("localhost", "0"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ln.Close()
+
+		_, portStr, err := net.SplitHostPort(ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ports = append(ports, port)
+
+		if i == 1 {
+			ln.Close()
+		}
+	}
+
+	expectedOut := fmt.Sprint("localhost:\n")
+	expectedOut += fmt.Sprintf("\t%d: open\n", ports[0])
+	expectedOut += fmt.Sprintf("\t%d: closed\n", ports[1])
+	expectedOut += "\n"
+	expectedOut += fmt.Sprint("unknownhostoutthere: Host not found\n")
+	expectedOut += "\n"
+
+	var outWriter bytes.Buffer
+
+	if err := scanAction(&outWriter, temp, ports); err != nil {
+		t.Fatalf("Expected no error, got %q\n", err)
+	}
+
+	if outWriter.String() != expectedOut {
+		t.Errorf("Expected output %q, got %q\n", expectedOut, outWriter.String())
+	}
+}
+
 // Executes all the operations in the defined sequence
-// add -> list -> delete -> list
+// add -> list -> delete -> list -> scan
 func TestIntegration(t *testing.T) {
 	hostNames := []string{
 		"host1",
@@ -137,6 +194,11 @@ func TestIntegration(t *testing.T) {
 	// list
 	expectedOutput.WriteString(strings.Join(hostsAfterDeletion, "\n"))
 	expectedOutput.WriteString("\n")
+	// scan
+	for _, v := range hostsAfterDeletion {
+		expectedOutput.WriteString(fmt.Sprintf("%s: Host not found\n", v))
+		expectedOutput.WriteString("\n")
+	}
 
 	// add
 	if err := addAction(&actualOutput, temp, hostNames); err != nil {
@@ -155,6 +217,11 @@ func TestIntegration(t *testing.T) {
 
 	// list
 	if err := listAction(&actualOutput, temp, hostNames); err != nil {
+		t.Fatalf("Expected no error, got %q\n", err)
+	}
+
+	// scan
+	if err := scanAction(&actualOutput, temp, nil); err != nil {
 		t.Fatalf("Expected no error, got %q\n", err)
 	}
 
