@@ -24,6 +24,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -70,6 +71,17 @@ func init() {
 	// Allows the user to specify the name of the file they want to use to save
 	// the host to. Defaults to the value of "pscan.hosts".
 	rootCmd.PersistentFlags().StringP("hosts-file", "f", "pscan.hosts", "pscan hosts file")
+
+	// On some OSs, you cannot use the dash (-) in the environment variable name.
+	// So we want to replace the dash with the underscore character.
+	replacer := strings.NewReplacer("-", "_")
+	viper.SetEnvKeyReplacer(replacer)
+
+	// Namespace the envoronment variables.
+	viper.SetEnvPrefix("PSCAN")
+
+	// Bind a key to a cobra flag so we can access flags using viper.
+	viper.BindPFlag("hosts-file", rootCmd.Flags().Lookup("hosts-file"))
 
 	// Customize the version template.
 	rootCmd.SetVersionTemplate(`{{printf "%s: %s - version %s\n" .Name .Short .Version}}`)
