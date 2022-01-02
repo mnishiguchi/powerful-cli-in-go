@@ -22,7 +22,8 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"fmt"
+	"io"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -30,16 +31,24 @@ import (
 // completionCmd represents the completion command
 var completionCmd = &cobra.Command{
 	Use:   "completion",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Generate bash completion for your command",
+	Long: `To load your completions run
+source <(pscan completion)
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("completion called")
+To load completion automatically on login, add this line to your .bashrc file:
+$ ~/.bashrc
+source <(pscan completion)
+  `,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return completionAction(os.Stdout)
 	},
+}
+
+func completionAction(outWriter io.Writer) error {
+	// The rootCmd.GenBashCompletion() method from Cobra generates command
+	// completion for the entire application. It prints the completion to the
+	// provided io.Writer.
+	return rootCmd.GenBashCompletion(outWriter)
 }
 
 func init() {
