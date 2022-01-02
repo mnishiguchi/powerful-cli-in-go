@@ -23,23 +23,40 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 )
 
 // docsCmd represents the docs command
 var docsCmd = &cobra.Command{
 	Use:   "docs",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Generate documentation for your command",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dir, err := cmd.Flags().GetString("dir")
+		if err != nil {
+			return err
+		}
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("docs called")
+		if dir == "" {
+			if dir, err = os.MkdirTemp("", "pscan"); err != nil {
+				return err
+			}
+		}
+
+		return docsAction(os.Stdout, dir)
 	},
+}
+
+func docsAction(outWriter io.Writer, dir string) error {
+	if err := doc.GenMarkdownTree(rootCmd, dir); err != nil {
+		return err
+	}
+
+	_, err := fmt.Fprintf(outWriter, "Documentation successfully created in %s\n", dir)
+	return err
 }
 
 func init() {
@@ -54,4 +71,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// docsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	docsCmd.Flags().StringP("dir", "d", "", "Destination directory for docs")
 }
